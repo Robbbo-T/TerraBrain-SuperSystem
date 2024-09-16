@@ -1,49 +1,47 @@
-# This stuff ends up here: https://catalog.githubapp.com/services/help-docs/docs
+# index.yaml
 
-version: 1
-links:
-  - name: Observability docs
-    description: Docs Engineering observability docs
-    kind: docs
-    service: docs-internal
-    url: https://github.com/github/docs-engineering/blob/main/docs/observability/docs.github.com.md
-  - name: Datadog dashboard
-    description: Production Datadog dashboard
-    kind: dashboard
-    service: docs-internal
-    url: https://app.datadoghq.com/dashboard/8uc-x67-tgi/help-docs
-  - name: Sentry dashboard
-    description: Production Sentry dashboard
-    kind: dashboard
-    service: docs-internal
-    url: https://sentry.io/organizations/github/issues/?project=5394325
-  - name: Help Docs playbook
-    description: How to respond to Help Docs Alerts
-    kind: playbook
-    service: docs-internal
-    url: https://github.com/github/docs-engineering/blob/main/docs/playbooks/docs/index.md
-  - name: Maintaining the deployment
-    description: Document describing the production deployment and how to troubleshoot it.
-    kind: docs
-    service: docs-internal
-    url: https://github.com/github/docs-internal#deployments
-  - name: PagerDuty escalation policy
-    description: Escalation policy and on-call schedule for incident response
-    kind: tool
-    service: docs-internal
-    url: https://github.pagerduty.com/schedules#PSTWXGP
-  - name: Feature docs
-    description: Docs describing a few key features of Help Docs
-    kind: docs
-    service: docs-internal
-    url: https://github.com/github/docs-engineering/tree/main/docs
-  - name: Technical architecture
-    description: This document covers the technical architecture of Help Docs
-    kind: docs
-    service: docs-internal
-    url: https://github.com/github/docs-internal#readmes
-  - name: Spin up locally
-    description: How to setup Help Docs on your local machine
-    kind: docs
-    service: docs-internal
-    url: https://github.com/github/docs-internal#developing
+title: TerraBrain Supersystem Documentation Index
+description: A comprehensive index of all documentation files related to the TerraBrain Supersystem.
+
+sections:
+  - title: Introduction
+    file: Introduction.md
+    description: Overview and introduction to the TerraBrain Supersystem, its purpose, and key features.
+
+  - title: System Architecture
+    file: System_Architecture.md
+    description: Detailed explanation of the system architecture, including core components and design principles.
+
+  - title: Integration with ROBBBO-T Aircraft
+    file: Integration_with_ROBBBO-T.md
+    description: Integration details and guidelines for connecting the TerraBrain Supersystem with the ROBBBO-T Aircraft project.
+
+  - title: AI Models
+    file: AI_Models.md
+    description: Descriptions of various AI models used within the TerraBrain Supersystem, including their functionalities and use cases.
+
+  - title: Quantum Computing Resources
+    file: Quantum_Computing.md
+    description: Information on quantum computing resources, algorithms, and integrations used in the TerraBrain Supersystem.
+
+  - title: IoT Infrastructure
+    file: IoT_Infrastructure.md
+    description: Details about the IoT infrastructure supporting the TerraBrain Supersystem, including communication protocols and device management.
+
+  - title: Sustainable Energy Solutions
+    file: Sustainable_Energy_Solutions.md
+    description: Strategies and solutions for sustainable energy management within the TerraBrain Supersystem.
+
+  - title: Global Monitoring and Analytics
+    file: Global_Monitoring_Analytics.md
+    description: Overview of global monitoring and analytics capabilities provided by the TerraBrain Supersystem.
+
+  - title: Security and Privacy Protocols
+    file: Security_and_Privacy.md
+    description: Security measures and privacy protocols to ensure the safe operation of the TerraBrain Supersystem.
+
+  - title: Collaboration Strategies
+    file: Collaboration_Strategies.md
+    description: Strategies for collaboration among teams and stakeholders involved in the TerraBrain Supersystem.
+
+# Additional sections can be added as needed for new documents.
