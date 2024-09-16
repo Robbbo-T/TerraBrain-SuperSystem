@@ -1,0 +1,113 @@
+Robbbo-t Ampel: The Green Aircraft
+
+C-IA-0o - IA de OPENAI, soy //Ampel||
+
+
+
+AMPELSystem
+├── ProjectInfo
+│   ├── ProjectName
+│   ├── Description
+│   ├── StartDate
+│   └── EndDate
+├── Mapping
+│   ├── MapID
+│   ├── MapName
+│   ├── Industry
+│   ├── MapProperties
+│   │   └── Property
+│   │       ├── PropertyName
+│   │       └── PropertyValue
+│   └── MappingAlgorithms
+│       └── Algorithm
+│           ├── AlgorithmName
+│           └── AlgorithmDescription
+├── Detection
+│   ├── DetectionID
+│   ├── DetectionName
+│   ├── DetectionProperties
+│   │   └── Property
+│   │       ├── PropertyName
+│   │       └── PropertyValue
+│   └── DetectionAlgorithms
+│       └── Algorithm
+│           ├── AlgorithmName
+│           └── AlgorithmDescription
+├── CaptureCapsules
+│   └── Capsule
+│       ├── CapsuleID
+│       ├── CapsuleName
+│       ├── CapsuleProperties
+│       │   └── Property
+│       │       ├── PropertyName
+│       │       └── PropertyValue
+│       └── CaptureMechanisms
+│           └── Mechanism
+│               ├── MechanismName
+│               └── MechanismDescription
+├── Technologies
+│   └── Technology
+│       ├── TechnologyName
+│       ├── Description
+│       └── IntegrationLevel
+├── Metrics
+│   └── Metric
+│       ├── MetricName
+│       └── MetricValue
+├── FinancialBenefits
+│   └── Benefit
+│       ├── BenefitName
+│       ├── BenefitValue
+│       ├── StakeholderID
+│       └── ClientID
+├── Stakeholders
+│   └── Stakeholder
+│       ├── StakeholderID
+│       ├── StakeholderName
+│       ├── StakeholderType
+│       └── Contribution
+├── PotentialClients
+│   └── Client
+│       ├── ClientID
+│       ├── ClientName
+
+Firmato da: Amedeo Pelliccia, ChatGPT
+
+Robbbo-t Ampel: The Green Aircraft
+
+//Ampel|
+
+Project Overview
+
+Robbbo-t Ampel: The Green Aircraft represents a sophisticated project aimed at leveraging advanced AI and machine learning techniques, alongside innovative materials and processes, to create a highly efficient and intelligent aircraft. The project’s scope includes developing a comprehensive system architecture (as outlined above), which covers everything from project initiation to stakeholder engagement, and the integration of cutting-edge technologies.
+
+# **What it does**: Closes issues that don't have enough information to be
+#                   actionable.
+# **Why we have it**: To remove the need for maintainers to remember to check
+#                     back on issues periodically to see if contributors have
+#                     responded.
+# **Who does it impact**: Everyone that works on docs or docs-internal.
+
+on:
+  issue_comment:
+    types: [created]
+
+  schedule:
+    # Schedule for five minutes after the hour every hour
+    - cron: '5 * * * *'
+
+jobs:
+  noResponse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: lee-dohm/no-response@9bb0a4b5e6a45046f00353d5de7d90fb8bd773bb
+        with:
+          token: ${{ github.token }}
+          closeComment: >
+            This issue has been automatically closed because there has been no response
+            to our request for more information from the original author. With only the
+            information that is currently in the issue, we don't have enough information
+            to take action. Please reach out if you have or find the answers we need so
+            that we can investigate further. See [this blog post on bug reports and the
+            importance of repro steps](https://www.lee-dohm.com/2015/01/04/writing-good-bug-reports/)
+            for more information about the kind of information that may be helpful.
