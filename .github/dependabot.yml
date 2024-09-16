@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: "npm" # For JavaScript/Node.js dependencies
+    directory: "/" # Root directory of the project
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "pip" # For Python dependencies
+    directory: "/" # Adjust as needed
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "maven" # For Java dependencies
+    directory: "/" # Location of Maven's `pom.xml`
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker" # For Docker dependencies
+    directory: "/" # Directory containing Dockerfiles
+    schedule:
+      interval: "weekly"
+
