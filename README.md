@@ -5,6 +5,672 @@ Initiative: Ampel ChatGPT
 
 # **TerraBrain SuperSystem Repository**
 
+### **Código Base para el Proyecto TerraBrain Alpha**
+
+Para facilitar el desarrollo y la implementación del **Proyecto TerraBrain Alpha**, a continuación se presenta una estructura base de código que servirá como punto de partida. Esta estructura está diseñada para abarcar las principales fases del proyecto, incluyendo la preparación de datos, ingeniería de características, entrenamiento y evaluación de modelos, despliegue de APIs, contenedorización con Docker y desarrollo de dashboards interactivos.
+
+---
+
+## **Estructura del Repositorio**
+
+```
+TerraBrain_Alpha/
+├── data/
+│   ├── raw/
+│   │   └── *.csv
+│   ├── processed/
+│   │   └── prepared_dataset.csv
+│   └── new/
+│       └── new_customer_data.csv
+├── notebooks/
+│   └── EDA.ipynb
+├── src/
+│   ├── data_preprocessing.py
+│   ├── feature_engineering.py
+│   ├── train_model.py
+│   ├── evaluate_model.py
+│   ├── api/
+│   │   └── app.py
+│   └── dashboard/
+│       └── dashboard.py
+├── tests/
+│   ├── test_data_preprocessing.py
+│   ├── test_feature_engineering.py
+│   └── test_model.py
+├── Dockerfile
+├── requirements.txt
+├── config.yaml
+├── README.md
+└── .gitignore
+```
+
+---
+
+## **Descripción de Carpetas y Archivos**
+
+### **1. data/**
+Contiene todos los datos utilizados en el proyecto.
+- **raw/**: Datos sin procesar.
+- **processed/**: Datos preprocesados y listos para el modelado.
+- **new/**: Nuevos datos que se incorporarán periódicamente para la actualización del modelo.
+
+### **2. notebooks/**
+Contiene notebooks de Jupyter para el Análisis Exploratorio de Datos (EDA) y experimentos preliminares.
+- **EDA.ipynb**: Notebook para el análisis exploratorio de datos.
+
+### **3. src/**
+Contiene todos los scripts de Python necesarios para el proyecto.
+- **data_preprocessing.py**: Script para la limpieza y preprocesamiento de datos.
+- **feature_engineering.py**: Script para la ingeniería de características.
+- **train_model.py**: Script para el entrenamiento de los modelos.
+- **evaluate_model.py**: Script para la evaluación de los modelos.
+- **api/**:
+  - **app.py**: Script para desplegar la API usando Flask.
+- **dashboard/**:
+  - **dashboard.py**: Script para desarrollar el dashboard interactivo usando Dash.
+
+### **4. tests/**
+Contiene pruebas unitarias para asegurar la calidad del código.
+- **test_data_preprocessing.py**: Pruebas para el preprocesamiento de datos.
+- **test_feature_engineering.py**: Pruebas para la ingeniería de características.
+- **test_model.py**: Pruebas para el entrenamiento y evaluación del modelo.
+
+### **5. Dockerfile**
+Archivo para contenedorización de la aplicación.
+
+### **6. requirements.txt**
+Lista de dependencias del proyecto.
+
+### **7. config.yaml**
+Archivo de configuración para parámetros del proyecto.
+
+### **8. README.md**
+Documentación general del proyecto.
+
+### **9. .gitignore**
+Archivo para ignorar archivos y carpetas innecesarias en el control de versiones.
+
+---
+
+## **Contenido de Archivos Clave**
+
+### **1. requirements.txt**
+Lista de dependencias necesarias para el proyecto.
+
+```txt
+pandas
+numpy
+scikit-learn
+xgboost
+lightgbm
+catboost
+flask
+dash
+plotly
+joblib
+optuna
+pytest
+scipy
+matplotlib
+seaborn
+shap
+```
+
+### **2. config.yaml**
+Archivo de configuración para parámetros reutilizables.
+
+```yaml
+data:
+  raw_data_path: 'data/raw/'
+  processed_data_path: 'data/processed/'
+  new_data_path: 'data/new/'
+
+model:
+  model_path: 'models/voting_classifier.pkl'
+  scaler_path: 'models/scaler.pkl'
+
+api:
+  host: '0.0.0.0'
+  port: 5000
+```
+
+### **3. data_preprocessing.py**
+Script para la limpieza y preprocesamiento de datos.
+
+```python
+import pandas as pd
+import numpy as np
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+import joblib
+import yaml
+
+# Cargar configuración
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+def load_data(file_path):
+    return pd.read_csv(file_path)
+
+def handle_missing_values(df):
+    # Imputación de valores numéricos
+    num_imputer = SimpleImputer(strategy='mean')
+    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget']
+    df[numerical_features] = num_imputer.fit_transform(df[numerical_features])
+    
+    # Imputación de valores categóricos
+    cat_imputer = SimpleImputer(strategy='most_frequent')
+    categorical_features = ['industry_sector', 'geographic_location']
+    df[categorical_features] = cat_imputer.fit_transform(df[categorical_features])
+    
+    return df
+
+def remove_duplicates(df):
+    return df.drop_duplicates()
+
+def detect_and_remove_outliers(df):
+    numerical_features = ['revenue_growth', 'investment_in_tech']
+    z_scores = np.abs(stats.zscore(df[numerical_features]))
+    df = df[(z_scores < 3).all(axis=1)]
+    return df
+
+def save_preprocessed_data(df, file_path):
+    df.to_csv(file_path, index=False)
+
+def main():
+    # Cargar datos
+    df = load_data(config['data']['raw_data_path'] + 'crm_data.csv')
+    
+    # Manejar valores faltantes
+    df = handle_missing_values(df)
+    
+    # Remover duplicados
+    df = remove_duplicates(df)
+    
+    # Detectar y remover outliers
+    df = detect_and_remove_outliers(df)
+    
+    # Guardar datos preprocesados
+    save_preprocessed_data(df, config['data']['processed_data_path'] + 'prepared_dataset.csv')
+    
+    print("Preprocesamiento completado y datos guardados en:", config['data']['processed_data_path'] + 'prepared_dataset.csv')
+
+if __name__ == "__main__":
+    main()
+```
+
+### **4. feature_engineering.py**
+Script para la ingeniería de características.
+
+```python
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import yaml
+
+# Cargar configuración
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+def load_data(file_path):
+    return pd.read_csv(file_path)
+
+def create_new_features(df):
+    df['engagement_score'] = df['frequency_interactions'] * df['types_services_utilized']
+    df['investment_ratio'] = df['investment_in_tech'] / df['total_budget']
+    df['customer_tenure'] = (pd.to_datetime(df['last_interaction_date']) - pd.to_datetime(df['first_interaction_date'])).dt.days
+    return df
+
+def scale_features(df, scaler_path):
+    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget', 
+                          'engagement_score', 'investment_ratio', 'customer_tenure']
+    scaler = StandardScaler()
+    df[numerical_features] = scaler.fit_transform(df[numerical_features])
+    
+    # Guardar el scaler
+    joblib.dump(scaler, scaler_path)
+    return df
+
+def encode_categorical_variables(df):
+    categorical_features = ['industry_sector', 'geographic_location']
+    df = pd.get_dummies(df, columns=categorical_features, drop_first=True)
+    return df
+
+def save_features(df, file_path):
+    df.to_csv(file_path, index=False)
+
+def main():
+    # Cargar datos preprocesados
+    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
+    
+    # Crear nuevas características
+    df = create_new_features(df)
+    
+    # Escalar características
+    df = scale_features(df, config['model']['scaler_path'])
+    
+    # Codificar variables categóricas
+    df = encode_categorical_variables(df)
+    
+    # Guardar dataset preparado
+    save_features(df, config['data']['processed_data_path'] + 'prepared_dataset.csv')
+    
+    print("Ingeniería de características completada y datos guardados en:", config['data']['processed_data_path'] + 'prepared_dataset.csv')
+
+if __name__ == "__main__":
+    main()
+```
+
+### **5. train_model.py**
+Script para el entrenamiento de los modelos.
+
+```python
+import pandas as pd
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+import xgboost as xgb
+import lightgbm as lgb
+import joblib
+import yaml
+
+# Cargar configuración
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+def load_data(file_path):
+    return pd.read_csv(file_path)
+
+def train_random_forest(X_train, y_train):
+    rf = RandomForestClassifier(random_state=42)
+    param_grid_rf = {
+        'n_estimators': [100, 200],
+        'max_depth': [None, 10, 20],
+        'min_samples_split': [2, 5],
+        'min_samples_leaf': [1, 2]
+    }
+    grid_search_rf = GridSearchCV(estimator=rf, param_grid=param_grid_rf, cv=5, scoring='f1', n_jobs=-1)
+    grid_search_rf.fit(X_train, y_train)
+    print("Mejores parámetros para Random Forest:", grid_search_rf.best_params_)
+    return grid_search_rf.best_estimator_
+
+def main():
+    # Cargar datos preparados
+    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
+    
+    # Definir características y objetivo
+    X = df.drop(['potential_customer', 'project_lead'], axis=1)
+    y = df['potential_customer']
+    
+    # Dividir datos
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Entrenar Random Forest
+    best_rf = train_random_forest(X_train, y_train)
+    
+    # Guardar el modelo entrenado
+    joblib.dump(best_rf, config['model']['model_path'])
+    print("Modelo Random Forest guardado en:", config['model']['model_path'])
+
+if __name__ == "__main__":
+    main()
+```
+
+### **6. evaluate_model.py**
+Script para la evaluación de los modelos.
+
+```python
+import pandas as pd
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve
+import matplotlib.pyplot as plt
+import seaborn as sns
+import joblib
+import yaml
+
+# Cargar configuración
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+def load_data(file_path):
+    return pd.read_csv(file_path)
+
+def evaluate_model(model, X_test, y_test, model_name):
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:,1] if hasattr(model, "predict_proba") else None
+    
+    print(f"--- Evaluación del Modelo: {model_name} ---")
+    print("Reporte de Clasificación:")
+    print(classification_report(y_test, y_pred))
+    
+    print("Matriz de Confusión:")
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Matriz de Confusión: {model_name}')
+    plt.xlabel('Predicho')
+    plt.ylabel('Real')
+    plt.show()
+    
+    if y_prob is not None:
+        auc = roc_auc_score(y_test, y_prob)
+        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+        plt.figure()
+        plt.plot(fpr, tpr, label=f'AUC = {auc:.2f}')
+        plt.plot([0, 1], [0, 1], 'k--')
+        plt.xlabel('Tasa de Falsos Positivos')
+        plt.ylabel('Tasa de Verdaderos Positivos')
+        plt.title(f'Curva ROC: {model_name}')
+        plt.legend(loc='lower right')
+        plt.show()
+        print(f"ROC-AUC Score: {auc:.2f}")
+
+def main():
+    # Cargar datos preparados
+    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
+    
+    # Definir características y objetivo
+    X = df.drop(['potential_customer', 'project_lead'], axis=1)
+    y = df['potential_customer']
+    
+    # Dividir datos
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Cargar el modelo entrenado
+    model = joblib.load(config['model']['model_path'])
+    
+    # Evaluar el modelo
+    evaluate_model(model, X_test, y_test, "Random Forest")
+
+if __name__ == "__main__":
+    main()
+```
+
+### **7. api/app.py**
+Script para desplegar la API usando Flask.
+
+```python
+from flask import Flask, request, jsonify
+import joblib
+import pandas as pd
+import yaml
+
+# Cargar configuración
+with open('../../config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+app = Flask(__name__)
+
+# Cargar el modelo entrenado y el escalador
+model = joblib.load(config['model']['model_path'])
+scaler = joblib.load(config['model']['scaler_path'])
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json(force=True)
+    df = pd.DataFrame([data])
+    
+    # Preprocesar datos
+    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget', 
+                          'engagement_score', 'investment_ratio', 'customer_tenure']
+    df[numerical_features] = scaler.transform(df[numerical_features])
+    
+    # Codificar variables categóricas
+    categorical_features = ['industry_sector_IT', 'industry_sector_Finance', 
+                            'geographic_location_US', 'geographic_location_Europe']
+    for feature in categorical_features:
+        if feature not in df.columns:
+            df[feature] = 0
+    
+    # Asegurar que todas las características están presentes
+    for col in model.feature_names_in_:
+        if col not in df.columns:
+            df[col] = 0
+    
+    # Reordenar columnas según el modelo
+    X = df[model.feature_names_in_]
+    
+    # Realizar predicción
+    prediction = model.predict(X)[0]
+    
+    return jsonify({'potential_customer': int(prediction)})
+
+if __name__ == '__main__':
+    app.run(host=config['api']['host'], port=config['api']['port'], debug=True)
+```
+
+### **8. dashboard/dashboard.py**
+Script para desarrollar el dashboard interactivo usando Dash.
+
+```python
+import dash
+from dash import dcc, html
+import plotly.express as px
+import pandas as pd
+import yaml
+
+# Cargar configuración
+with open('../../config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
+
+# Inicializar la aplicación Dash
+app = dash.Dash(__name__)
+
+# Cargar los proyectos con relevancia asignada
+projects_df = pd.read_csv('../../data/projects_with_relevance.csv')
+
+# Layout de la aplicación
+app.layout = html.Div([
+    html.H1("Dashboard de Relevancia de Proyectos No Explotados"),
+    
+    dcc.Graph(
+        id='relevancia-proyectos',
+        figure=px.bar(projects_df, x='project_name', y='probabilidad_potencial',
+                     color='relevancia',
+                     title='Relevancia de Proyectos No Explotados',
+                     labels={'probabilidad_potencial': 'Probabilidad de Proyecto Transformador'},
+                     hover_data=['project_lead'])
+    ),
+    
+    dcc.Graph(
+        id='distribucion-relevancia',
+        figure=px.pie(projects_df, names='relevancia', title='Distribución de Relevancia')
+    )
+])
+
+# Ejecutar la aplicación
+if __name__ == '__main__':
+    app.run_server(debug=True)
+```
+
+### **9. Dockerfile**
+Archivo para contenedorización de la aplicación.
+
+```dockerfile
+# Usar una imagen base de Python
+FROM python:3.8-slim
+
+# Establecer el directorio de trabajo
+WORKDIR /app
+
+# Copiar los archivos de requisitos
+COPY requirements.txt .
+
+# Instalar las dependencias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar el resto de la aplicación
+COPY . .
+
+# Exponer el puerto de la API
+EXPOSE 5000
+
+# Comando para ejecutar la API
+CMD ["python", "src/api/app.py"]
+```
+
+### **10. README.md**
+Documentación general del proyecto.
+
+```markdown
+# Proyecto TerraBrain Alpha
+
+## Descripción
+TerraBrain Alpha es una iniciativa de la GAIA Intelligent Network Foundation (GINF) destinada a desarrollar el núcleo cognitivo del TerraBrain Supersystem. Este sistema inteligente facilitará la toma de decisiones en tiempo real, la integración de datos cross-domain y la optimización del sistema para proyectos transformadores e innovadores dentro de Capgemini.
+
+## Estructura del Repositorio
+
+```
+TerraBrain_Alpha/
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── new/
+├── notebooks/
+├── src/
+│   ├── data_preprocessing.py
+│   ├── feature_engineering.py
+│   ├── train_model.py
+│   ├── evaluate_model.py
+│   ├── api/
+│   └── dashboard/
+├── tests/
+├── Dockerfile
+├── requirements.txt
+├── config.yaml
+├── README.md
+└── .gitignore
+```
+
+## Instalación
+
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/tu_usuario/TerraBrain_Alpha.git
+   cd TerraBrain_Alpha
+   ```
+
+2. **Crear un entorno virtual:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Instalar dependencias:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configurar parámetros:**
+   - Edita el archivo `config.yaml` para ajustar las rutas y configuraciones según tus necesidades.
+
+## Uso
+
+### Preprocesamiento de Datos
+```bash
+python src/data_preprocessing.py
+```
+
+### Ingeniería de Características
+```bash
+python src/feature_engineering.py
+```
+
+### Entrenamiento del Modelo
+```bash
+python src/train_model.py
+```
+
+### Evaluación del Modelo
+```bash
+python src/evaluate_model.py
+```
+
+### Despliegue de la API
+```bash
+python src/api/app.py
+```
+
+### Desarrollo del Dashboard
+```bash
+python src/dashboard/dashboard.py
+```
+
+## Contenedorización con Docker
+
+1. **Construir la imagen Docker:**
+   ```bash
+   docker build -t terrabrain_alpha .
+   ```
+
+2. **Ejecutar el contenedor:**
+   ```bash
+   docker run -p 5000:5000 terrabrain_alpha
+   ```
+
+## Testing
+
+Ejecutar pruebas unitarias utilizando `pytest`:
+```bash
+pytest tests/
+```
+
+## Contribución
+
+1. **Fork del repositorio**
+2. **Crear una rama para tu feature (`git checkout -b feature/nueva_feature`)**
+3. **Commit de tus cambios (`git commit -m 'Añadir nueva feature')**
+4. **Push a la rama (`git push origin feature/nueva_feature`)**
+5. **Crear un Pull Request**
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
+## Contacto
+
+Para cualquier consulta o sugerencia, por favor contacta a [tu_email@capgemini.com](mailto:tu_email@capgemini.com).
+
+---
+
+**¡Éxito continuo en el Proyecto TerraBrain Alpha!**
+```
+
+---
+
+## **Próximos Pasos para el Código Base**
+
+1. **Completar los Scripts de Preprocesamiento y Feature Engineering:**
+   - Asegúrate de que los scripts `data_preprocessing.py` y `feature_engineering.py` estén funcionando correctamente y manejen todas las particularidades de tus datos.
+
+2. **Entrenar y Guardar el Modelo:**
+   - Ejecuta `train_model.py` para entrenar el modelo y guardarlo en la ruta especificada en `config.yaml`.
+
+3. **Evaluar el Modelo:**
+   - Utiliza `evaluate_model.py` para revisar el desempeño del modelo y ajustar parámetros según sea necesario.
+
+4. **Desplegar la API:**
+   - Ejecuta `src/api/app.py` para iniciar la API Flask y realizar pruebas de predicción.
+
+5. **Desarrollar y Desplegar el Dashboard:**
+   - Ejecuta `src/dashboard/dashboard.py` para iniciar el dashboard interactivo y visualizar la relevancia de los proyectos.
+
+6. **Contenedorización con Docker:**
+   - Construye y ejecuta el contenedor Docker para facilitar el despliegue en diferentes entornos.
+
+7. **Implementar Testing:**
+   - Desarrolla pruebas unitarias en la carpeta `tests/` para asegurar la calidad del código.
+
+8. **Documentación y Capacitación:**
+   - Completa la documentación en `README.md` y organiza sesiones de capacitación para el equipo.
+
+---
+
+## **Consideraciones Finales**
+
+Este código base está diseñado para ser modular y escalable, facilitando futuras expansiones y mejoras. Asegúrate de mantener una documentación detallada y de seguir las mejores prácticas de desarrollo para garantizar la eficiencia y efectividad del proyecto.
+
+**¡Mucho éxito en las próximas etapas del Proyecto TerraBrain Alpha!**
+
+Si necesitas asistencia adicional en cualquier fase específica, desarrollo de visualizaciones personalizadas, o integración con sistemas existentes, no dudes en contactarme. Estoy aquí para ayudarte a asegurar que tu iniciativa de modelado predictivo y desarrollo de sistemas inteligentes sea lo más efectiva y exitosa posible.
+
 ## Key Components of the TerraBrain SuperSystem ("superproject")
 
 ### 1. **GAIcrafts** (https://github.com/Robbbo-T/Aicraft): Next-generation Green AI-powered aircraft, leveraging AI for real-time optimization, sustainable fuel usage, and advanced navigation. These crafts are designed for minimal environmental impact, employing hybrid propulsion systems, renewable materials, and ultra-efficient aerodynamics.
