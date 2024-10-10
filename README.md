@@ -7,390 +7,663 @@ Initiative: Ampel ChatGPT
 
 ### **Código Base para el Proyecto TerraBrain Alpha**
 
-Para facilitar el desarrollo y la implementación del **Proyecto TerraBrain Alpha**, a continuación se presenta una estructura base de código que servirá como punto de partida. Esta estructura está diseñada para abarcar las principales fases del proyecto, incluyendo la preparación de datos, ingeniería de características, entrenamiento y evaluación de modelos, despliegue de APIs, contenedorización con Docker y desarrollo de dashboards interactivos.
+---
+
+## **Siguientes Pasos y Ajustes para Implementación**
+
+### **1. Integración y Pruebas de Módulos Independientes**
+
+#### **a. Configurar pruebas para los módulos DM Module, CAA Module y LAM Module**
+
+**Recomendaciones:**
+- **Pruebas Unitarias:** Asegúrate de que cada función y clase en estos módulos tenga pruebas unitarias que verifiquen su funcionalidad individual.
+- **Pruebas de Integración:** Verifica que los módulos interactúen correctamente entre sí, asegurando que los datos fluyan de un módulo a otro sin errores.
+
+**Ejemplo de Prueba Unitaria para `DecisionMaker`:**
+
+```python
+# tests/test_cognitive_engine/test_dm_module/test_decision_maker.py
+
+import unittest
+from src.cognitive_engine.dm_module.decision_maker import DecisionMaker
+
+class TestDecisionMaker(unittest.TestCase):
+    def setUp(self):
+        self.decision_maker = DecisionMaker()
+        self.context = {"sensor_data": "data_example", "user_input": "input_example"}
+    
+    def test_make_decision(self):
+        decision = self.decision_maker.make_decision(self.context)
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision, "optimal_action_based_on_criteria")  # Ajustar según lógica real
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+**Ejemplo de Prueba de Integración entre `DM Module` y `CAA Module`:**
+
+```python
+# tests/test_cognitive_engine/test_integration.py
+
+import unittest
+from src.cognitive_engine.dm_module.decision_maker import DecisionMaker
+from src.cognitive_engine.caa_module.nlp_processor import NLPProcessor
+
+class TestIntegration(unittest.TestCase):
+    def setUp(self):
+        self.decision_maker = DecisionMaker()
+        self.nlp_processor = NLPProcessor()
+        self.context = {"sensor_data": "data_example", "user_input": "Capgemini lidera el mercado en soluciones de IA."}
+    
+    def test_decision_maker_with_nlp(self):
+        entities = self.nlp_processor.process_text(self.context['user_input'])
+        self.context['entities'] = entities
+        decision = self.decision_maker.make_decision(self.context)
+        self.assertIsNotNone(decision)
+        # Añadir más aserciones según la lógica de decisión
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+#### **b. Verificar la comunicación entre cada módulo**
+
+**Recomendaciones:**
+- **Mocking:** Utiliza bibliotecas como `unittest.mock` para simular interacciones entre módulos durante las pruebas.
+- **Logs y Monitoreo:** Implementa logging detallado en cada módulo para rastrear el flujo de datos y detectar posibles errores en la comunicación.
+
+**Ejemplo de Uso de Mocking para Pruebas de Comunicación:**
+
+```python
+# tests/test_cognitive_engine/test_dm_module/test_decision_maker_integration.py
+
+import unittest
+from unittest.mock import MagicMock
+from src.cognitive_engine.dm_module.decision_maker import DecisionMaker
+
+class TestDecisionMakerIntegration(unittest.TestCase):
+    def setUp(self):
+        self.decision_maker = DecisionMaker()
+        self.decision_maker.rl_model.optimize_decision = MagicMock(return_value="optimized_decision")
+        self.context = {"sensor_data": "data_example", "user_input": "input_example"}
+    
+    def test_make_decision_with_mocked_rl(self):
+        decision = self.decision_maker.make_decision(self.context)
+        self.decision_maker.rl_model.optimize_decision.assert_called_once_with("optimal_action_based_on_criteria")
+        self.assertEqual(decision, "optimized_decision")
+
+if __name__ == '__main__':
+    unittest.main()
+```
 
 ---
 
-## **Estructura del Repositorio**
+### **2. Optimización y Expansión de Funcionalidades**
 
+#### **a. Uso de protocolos de comunicación asíncrona como gRPC en el módulo I_Amedeo**
+
+**Recomendaciones:**
+- **Implementar gRPC para Comunicación Eficiente:** gRPC permite comunicaciones rápidas y eficientes entre servicios, ideal para sistemas en tiempo real.
+- **Definir Interfaces con Protocol Buffers:** Utiliza `.proto` files para definir los servicios y mensajes que serán intercambiados.
+
+**Ejemplo de Implementación Básica de gRPC:**
+
+1. **Definir el Servicio en un Archivo `.proto`:**
+
+```proto
+// src/i_amedeo_module/communication.proto
+
+syntax = "proto3";
+
+service CommunicationService {
+  rpc SendData (DataRequest) returns (DataResponse) {}
+}
+
+message DataRequest {
+  string data = 1;
+}
+
+message DataResponse {
+  string status = 1;
+}
 ```
-TerraBrain_Alpha/
-├── data/
-│   ├── raw/
-│   │   └── *.csv
-│   ├── processed/
-│   │   └── prepared_dataset.csv
-│   └── new/
-│       └── new_customer_data.csv
-├── notebooks/
-│   └── EDA.ipynb
-├── src/
-│   ├── data_preprocessing.py
-│   ├── feature_engineering.py
-│   ├── train_model.py
-│   ├── evaluate_model.py
-│   ├── api/
-│   │   └── app.py
-│   └── dashboard/
-│       └── dashboard.py
-├── tests/
-│   ├── test_data_preprocessing.py
-│   ├── test_feature_engineering.py
-│   └── test_model.py
-├── Dockerfile
-├── requirements.txt
-├── config.yaml
-├── README.md
-└── .gitignore
+
+2. **Generar el Código de gRPC:**
+
+```bash
+python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. src/i_amedeo_module/communication.proto
+```
+
+3. **Implementar el Servidor gRPC:**
+
+```python
+# src/i_amedeo_module/communication_server.py
+
+import grpc
+from concurrent import futures
+import time
+import src.i_amedeo_module.communication_pb2 as communication_pb2
+import src.i_amedeo_module.communication_pb2_grpc as communication_pb2_grpc
+
+class CommunicationServiceServicer(communication_pb2_grpc.CommunicationServiceServicer):
+    def SendData(self, request, context):
+        # Procesar los datos recibidos
+        print(f"Datos recibidos: {request.data}")
+        return communication_pb2.DataResponse(status="Data received successfully")
+
+def serve():
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    communication_pb2_grpc.add_CommunicationServiceServicer_to_server(CommunicationServiceServicer(), server)
+    server.add_insecure_port('[::]:50051')
+    server.start()
+    print("Servidor gRPC iniciado en el puerto 50051")
+    try:
+        while True:
+            time.sleep(86400)  # Mantener el servidor corriendo
+    except KeyboardInterrupt:
+        server.stop(0)
+
+if __name__ == '__main__':
+    serve()
+```
+
+4. **Implementar el Cliente gRPC:**
+
+```python
+# src/i_amedeo_module/communication_client.py
+
+import grpc
+import src.i_amedeo_module.communication_pb2 as communication_pb2
+import src.i_amedeo_module.communication_pb2_grpc as communication_pb2_grpc
+
+def run():
+    with grpc.insecure_channel('localhost:50051') as channel:
+        stub = communication_pb2_grpc.CommunicationServiceStub(channel)
+        response = stub.SendData(communication_pb2.DataRequest(data="Ejemplo de datos"))
+        print(f"Respuesta del servidor: {response.status}")
+
+if __name__ == '__main__':
+    run()
+```
+
+#### **b. Añadir técnicas avanzadas de optimización de decisiones como Programación Dinámica**
+
+**Recomendaciones:**
+- **Implementar Algoritmos de Programación Dinámica:** Útil para resolver problemas de optimización que pueden dividirse en subproblemas más pequeños.
+- **Integración con el Decision-Making Module:** Incorporar estos algoritmos para mejorar la capacidad de toma de decisiones en escenarios complejos.
+
+**Ejemplo de Algoritmo de Programación Dinámica para Optimización de Recursos:**
+
+```python
+# src/cognitive_engine/dm_module/optimization.py
+
+def dynamic_programming_optimization(resources, projects):
+    """
+    resources: int - cantidad total de recursos disponibles
+    projects: list of tuples - cada tupla contiene (benefit, cost)
+    
+    Retorna la lista de proyectos seleccionados para maximizar el beneficio sin exceder los recursos.
+    """
+    n = len(projects)
+    dp = [[0 for _ in range(resources + 1)] for _ in range(n + 1)]
+    
+    for i in range(1, n + 1):
+        benefit, cost = projects[i-1]
+        for w in range(resources + 1):
+            if cost <= w:
+                dp[i][w] = max(dp[i-1][w], dp[i-1][w - cost] + benefit)
+            else:
+                dp[i][w] = dp[i-1][w]
+    
+    # Reconstruir la solución
+    w = resources
+    selected_projects = []
+    for i in range(n, 0, -1):
+        if dp[i][w] != dp[i-1][w]:
+            selected_projects.append(projects[i-1])
+            w -= projects[i-1][1]
+    
+    return selected_projects
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    total_resources = 50
+    project_list = [(60, 10), (100, 20), (120, 30)]
+    selected = dynamic_programming_optimization(total_resources, project_list)
+    print("Proyectos seleccionados:", selected)
 ```
 
 ---
 
-## **Descripción de Carpetas y Archivos**
+### **3. Dashboard Interactivo**
 
-### **1. data/**
-Contiene todos los datos utilizados en el proyecto.
-- **raw/**: Datos sin procesar.
-- **processed/**: Datos preprocesados y listos para el modelado.
-- **new/**: Nuevos datos que se incorporarán periódicamente para la actualización del modelo.
+#### **a. Expandir las funcionalidades del módulo GreenTrack Lite y reflejarlo en el dashboard**
 
-### **2. notebooks/**
-Contiene notebooks de Jupyter para el Análisis Exploratorio de Datos (EDA) y experimentos preliminares.
-- **EDA.ipynb**: Notebook para el análisis exploratorio de datos.
+**Recomendaciones:**
+- **Integración de KPIs en Tiempo Real:** Utiliza WebSockets o APIs periódicas para actualizar los KPIs en tiempo real.
+- **Visualizaciones Avanzadas:** Implementa Sankey Diagrams para visualizar flujos de recursos y Gráficas de Línea de Tiempo para el progreso de sostenibilidad.
 
-### **3. src/**
-Contiene todos los scripts de Python necesarios para el proyecto.
-- **data_preprocessing.py**: Script para la limpieza y preprocesamiento de datos.
-- **feature_engineering.py**: Script para la ingeniería de características.
-- **train_model.py**: Script para el entrenamiento de los modelos.
-- **evaluate_model.py**: Script para la evaluación de los modelos.
-- **api/**:
-  - **app.py**: Script para desplegar la API usando Flask.
-- **dashboard/**:
-  - **dashboard.py**: Script para desarrollar el dashboard interactivo usando Dash.
+**Ejemplo de Dashboard con Visualizaciones Avanzadas:**
 
-### **4. tests/**
-Contiene pruebas unitarias para asegurar la calidad del código.
-- **test_data_preprocessing.py**: Pruebas para el preprocesamiento de datos.
-- **test_feature_engineering.py**: Pruebas para la ingeniería de características.
-- **test_model.py**: Pruebas para el entrenamiento y evaluación del modelo.
+```python
+# src/dashboard/dashboard.py
 
-### **5. Dockerfile**
-Archivo para contenedorización de la aplicación.
+import dash
+from dash import dcc, html
+import plotly.express as px
+import pandas as pd
+import yaml
+from dash.dependencies import Input, Output
 
-### **6. requirements.txt**
-Lista de dependencias del proyecto.
+# Cargar configuración
+with open('../../config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
 
-### **7. config.yaml**
-Archivo de configuración para parámetros del proyecto.
+# Inicializar la aplicación Dash
+app = dash.Dash(__name__)
 
-### **8. README.md**
-Documentación general del proyecto.
+# Cargar los proyectos con relevancia asignada
+projects_df = pd.read_csv('../../data/projects_with_relevance.csv')
 
-### **9. .gitignore**
-Archivo para ignorar archivos y carpetas innecesarias en el control de versiones.
+# Cargar datos de sostenibilidad
+sustainability_df = pd.read_csv('../../data/sustainability_metrics.csv')  # Asegúrate de tener este archivo
+
+# Layout de la aplicación
+app.layout = html.Div([
+    html.H1("Dashboard de Relevancia y Sostenibilidad de Proyectos TerraBrain Alpha"),
+    
+    dcc.Tabs([
+        dcc.Tab(label='Relevancia de Proyectos', children=[
+            dcc.Graph(
+                id='relevancia-proyectos',
+                figure=px.bar(projects_df, x='project_name', y='probabilidad_potencial',
+                             color='relevancia',
+                             title='Relevancia de Proyectos No Explotados',
+                             labels={'probabilidad_potencial': 'Probabilidad de Proyecto Transformador'},
+                             hover_data=['project_lead'])
+            ),
+            dcc.Graph(
+                id='distribucion-relevancia',
+                figure=px.pie(projects_df, names='relevancia', title='Distribución de Relevancia')
+            )
+        ]),
+        dcc.Tab(label='Sostenibilidad', children=[
+            dcc.Graph(
+                id='sankey-diagram',
+                figure={
+                    'data': [
+                        {
+                            'type': 'sankey',
+                            'node': {
+                                'label': ['Recursos', 'Proyectos', 'Emisiones CO2'],
+                                'pad': 15,
+                                'thickness': 20,
+                                'color': ['blue', 'green', 'red']
+                            },
+                            'link': {
+                                'source': [0, 0, 1],
+                                'target': [1, 2, 2],
+                                'value': [8, 4, 2]
+                            }
+                        }
+                    ],
+                    'layout': {
+                        'title': 'Flujos de Recursos y Emisiones CO2',
+                        'font': {'size': 10}
+                    }
+                }
+            ),
+            dcc.Graph(
+                id='line-timeline',
+                figure=px.line(sustainability_df, x='fecha', y='metric', color='tipo_metric',
+                              title='Progreso de Sostenibilidad en el Tiempo',
+                              labels={'fecha': 'Fecha', 'metric': 'Valor de la Métrica'})
+            )
+        ])
+    ])
+])
+
+# Callback para actualización en tiempo real (Ejemplo simple)
+@app.callback(
+    Output('relevancia-proyectos', 'figure'),
+    [Input('interval-component', 'n_intervals')]
+)
+def update_relevancia(n):
+    # Aquí podrías actualizar los datos en tiempo real
+    updated_projects_df = pd.read_csv('../../data/projects_with_relevance.csv')  # Actualiza el archivo regularmente
+    fig = px.bar(updated_projects_df, x='project_name', y='probabilidad_potencial',
+                color='relevancia',
+                title='Relevancia de Proyectos No Explotados',
+                labels={'probabilidad_potencial': 'Probabilidad de Proyecto Transformador'},
+                hover_data=['project_lead'])
+    return fig
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
+```
+
+**Notas:**
+- **Datos de Sostenibilidad:** Asegúrate de tener un archivo `sustainability_metrics.csv` actualizado con las métricas necesarias.
+- **Actualización en Tiempo Real:** Puedes implementar `dcc.Interval` para refrescar los gráficos a intervalos regulares.
+
+#### **b. Implementar visualizaciones avanzadas como Sankey Diagrams y Gráficas de Línea de Tiempo**
+
+**Ejemplo de Sankey Diagram:**
+
+```python
+import plotly.graph_objects as go
+
+fig = go.Figure(data=[go.Sankey(
+    node = dict(
+      pad = 15,
+      thickness = 20,
+      line = dict(color = "black", width = 0.5),
+      label = ["Recursos", "Proyectos", "Emisiones CO2"],
+      color = ["blue", "green", "red"]
+    ),
+    link = dict(
+      source = [0, 0, 1], # índices de los nodos de origen
+      target = [1, 2, 2], # índices de los nodos de destino
+      value = [8, 4, 2]    # valores de las conexiones
+  ))])
+
+fig.update_layout(title_text="Flujos de Recursos y Emisiones CO2", font_size=10)
+fig.show()
+```
+
+**Ejemplo de Gráfica de Línea de Tiempo:**
+
+```python
+import plotly.express as px
+import pandas as pd
+
+# Supongamos que tienes un DataFrame con columnas 'fecha', 'metric', 'tipo_metric'
+sustainability_df = pd.read_csv('data/sustainability_metrics.csv')
+
+fig = px.line(sustainability_df, x='fecha', y='metric', color='tipo_metric',
+              title='Progreso de Sostenibilidad en el Tiempo',
+              labels={'fecha': 'Fecha', 'metric': 'Valor de la Métrica'})
+fig.show()
+```
 
 ---
 
-## **Contenido de Archivos Clave**
+### **4. Estrategia de Despliegue y CI/CD**
 
-### **1. requirements.txt**
-Lista de dependencias necesarias para el proyecto.
+#### **a. Finalizar la integración de GitHub Actions o herramientas CI/CD similares**
 
-```txt
-pandas
-numpy
-scikit-learn
-xgboost
-lightgbm
-catboost
-flask
-dash
-plotly
-joblib
-optuna
-pytest
-scipy
-matplotlib
-seaborn
-shap
-```
+**Recomendaciones:**
+- **Automatización de Despliegues:** Configura GitHub Actions para desplegar automáticamente la API y el dashboard cada vez que se realicen cambios en la rama `main`.
+- **Monitoreo de Estado de Build:** Implementa alertas usando integraciones de GitHub Actions con Slack, correo electrónico o sistemas de notificación similares para estar informado sobre el estado de los builds.
 
-### **2. config.yaml**
-Archivo de configuración para parámetros reutilizables.
+**Ejemplo de Workflow para Despliegue Automático:**
 
 ```yaml
-data:
-  raw_data_path: 'data/raw/'
-  processed_data_path: 'data/processed/'
-  new_data_path: 'data/new/'
+# .github/workflows/ci-cd.yml
 
-model:
-  model_path: 'models/voting_classifier.pkl'
-  scaler_path: 'models/scaler.pkl'
+name: CI/CD Pipeline
 
-api:
-  host: '0.0.0.0'
-  port: 5000
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 src/
+
+    - name: Run tests
+      run: |
+        pip install pytest
+        pytest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: tu_usuario/terrabrain_alpha:latest
+
+    - name: Deploy to Server
+      uses: easingthemes/ssh-deploy@v2.1.5
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        remote-user: usuario
+        server-ip: servidor_ip
+        remote-path: /ruta/en/el/servidor/
+        local-path: .
 ```
 
-### **3. data_preprocessing.py**
-Script para la limpieza y preprocesamiento de datos.
+**Pasos para Implementar:**
 
-```python
-import pandas as pd
-import numpy as np
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
-from scipy import stats
-import joblib
-import yaml
+1. **Configurar Secrets en GitHub:**
+   - `DOCKER_USERNAME`: Tu nombre de usuario de Docker Hub.
+   - `DOCKER_PASSWORD`: Tu contraseña de Docker Hub.
+   - `SSH_PRIVATE_KEY`: Clave privada para acceder al servidor de despliegue.
 
-# Cargar configuración
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
+2. **Crear el Archivo de Workflow:**
+   Guarda el contenido anterior en `.github/workflows/ci-cd.yml`.
 
-def load_data(file_path):
-    return pd.read_csv(file_path)
+3. **Configurar el Servidor de Despliegue:**
+   - Asegúrate de que el servidor tenga Docker instalado.
+   - Configura el servidor para recibir y ejecutar la nueva imagen de Docker.
 
-def handle_missing_values(df):
-    # Imputación de valores numéricos
-    num_imputer = SimpleImputer(strategy='mean')
-    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget']
-    df[numerical_features] = num_imputer.fit_transform(df[numerical_features])
-    
-    # Imputación de valores categóricos
-    cat_imputer = SimpleImputer(strategy='most_frequent')
-    categorical_features = ['industry_sector', 'geographic_location']
-    df[categorical_features] = cat_imputer.fit_transform(df[categorical_features])
-    
-    return df
+#### **b. Implementar alertas de estado de construcción**
 
-def remove_duplicates(df):
-    return df.drop_duplicates()
+**Recomendaciones:**
+- **Integraciones de Notificaciones:** Utiliza integraciones de GitHub Actions con herramientas como Slack, Microsoft Teams o correo electrónico para recibir notificaciones sobre el estado de los builds y despliegues.
 
-def detect_and_remove_outliers(df):
-    numerical_features = ['revenue_growth', 'investment_in_tech']
-    z_scores = np.abs(stats.zscore(df[numerical_features]))
-    df = df[(z_scores < 3).all(axis=1)]
-    return df
+**Ejemplo de Integración con Slack:**
 
-def save_preprocessed_data(df, file_path):
-    df.to_csv(file_path, index=False)
+1. **Crear un Webhook de Slack:**
+   - Ve a tu espacio de trabajo en Slack.
+   - Crea una aplicación y configura un Incoming Webhook.
 
-def main():
-    # Cargar datos
-    df = load_data(config['data']['raw_data_path'] + 'crm_data.csv')
-    
-    # Manejar valores faltantes
-    df = handle_missing_values(df)
-    
-    # Remover duplicados
-    df = remove_duplicates(df)
-    
-    # Detectar y remover outliers
-    df = detect_and_remove_outliers(df)
-    
-    # Guardar datos preprocesados
-    save_preprocessed_data(df, config['data']['processed_data_path'] + 'prepared_dataset.csv')
-    
-    print("Preprocesamiento completado y datos guardados en:", config['data']['processed_data_path'] + 'prepared_dataset.csv')
+2. **Añadir el Webhook como Secret en GitHub:**
+   - `SLACK_WEBHOOK_URL`: La URL del webhook de Slack.
 
-if __name__ == "__main__":
-    main()
+3. **Modificar el Workflow para Enviar Notificaciones:**
+
+```yaml
+# Añadir al final del job de deploy en ci-cd.yml
+
+    - name: Send Slack Notification
+      if: success()
+      uses: slackapi/slack-github-action@v1.15.0
+      with:
+        payload: |
+          {
+            "text": "🚀 Despliegue exitoso del Proyecto TerraBrain Alpha en el servidor."
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
 
-### **4. feature_engineering.py**
-Script para la ingeniería de características.
+---
 
-```python
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-import yaml
+### **5. Documentación de Módulos y Componentes**
 
-# Cargar configuración
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
+#### **a. Crear documentación técnica específica para cada módulo usando Sphinx**
 
-def load_data(file_path):
-    return pd.read_csv(file_path)
+**Recomendaciones:**
+- **Instalación de Sphinx:**
 
-def create_new_features(df):
-    df['engagement_score'] = df['frequency_interactions'] * df['types_services_utilized']
-    df['investment_ratio'] = df['investment_in_tech'] / df['total_budget']
-    df['customer_tenure'] = (pd.to_datetime(df['last_interaction_date']) - pd.to_datetime(df['first_interaction_date'])).dt.days
-    return df
-
-def scale_features(df, scaler_path):
-    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget', 
-                          'engagement_score', 'investment_ratio', 'customer_tenure']
-    scaler = StandardScaler()
-    df[numerical_features] = scaler.fit_transform(df[numerical_features])
-    
-    # Guardar el scaler
-    joblib.dump(scaler, scaler_path)
-    return df
-
-def encode_categorical_variables(df):
-    categorical_features = ['industry_sector', 'geographic_location']
-    df = pd.get_dummies(df, columns=categorical_features, drop_first=True)
-    return df
-
-def save_features(df, file_path):
-    df.to_csv(file_path, index=False)
-
-def main():
-    # Cargar datos preprocesados
-    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
-    
-    # Crear nuevas características
-    df = create_new_features(df)
-    
-    # Escalar características
-    df = scale_features(df, config['model']['scaler_path'])
-    
-    # Codificar variables categóricas
-    df = encode_categorical_variables(df)
-    
-    # Guardar dataset preparado
-    save_features(df, config['data']['processed_data_path'] + 'prepared_dataset.csv')
-    
-    print("Ingeniería de características completada y datos guardados en:", config['data']['processed_data_path'] + 'prepared_dataset.csv')
-
-if __name__ == "__main__":
-    main()
+```bash
+pip install sphinx
 ```
 
-### **5. train_model.py**
-Script para el entrenamiento de los modelos.
+- **Inicializar la Documentación:**
 
-```python
-import pandas as pd
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
-import xgboost as xgb
-import lightgbm as lgb
-import joblib
-import yaml
-
-# Cargar configuración
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
-
-def load_data(file_path):
-    return pd.read_csv(file_path)
-
-def train_random_forest(X_train, y_train):
-    rf = RandomForestClassifier(random_state=42)
-    param_grid_rf = {
-        'n_estimators': [100, 200],
-        'max_depth': [None, 10, 20],
-        'min_samples_split': [2, 5],
-        'min_samples_leaf': [1, 2]
-    }
-    grid_search_rf = GridSearchCV(estimator=rf, param_grid=param_grid_rf, cv=5, scoring='f1', n_jobs=-1)
-    grid_search_rf.fit(X_train, y_train)
-    print("Mejores parámetros para Random Forest:", grid_search_rf.best_params_)
-    return grid_search_rf.best_estimator_
-
-def main():
-    # Cargar datos preparados
-    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
-    
-    # Definir características y objetivo
-    X = df.drop(['potential_customer', 'project_lead'], axis=1)
-    y = df['potential_customer']
-    
-    # Dividir datos
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Entrenar Random Forest
-    best_rf = train_random_forest(X_train, y_train)
-    
-    # Guardar el modelo entrenado
-    joblib.dump(best_rf, config['model']['model_path'])
-    print("Modelo Random Forest guardado en:", config['model']['model_path'])
-
-if __name__ == "__main__":
-    main()
+```bash
+sphinx-quickstart docs
 ```
 
-### **6. evaluate_model.py**
-Script para la evaluación de los modelos.
+- **Configurar `conf.py`:**
+  Asegúrate de incluir los paths necesarios y extensiones como `autodoc`.
 
 ```python
-import pandas as pd
-from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, roc_curve
-import matplotlib.pyplot as plt
-import seaborn as sns
-import joblib
-import yaml
+# docs/conf.py
 
-# Cargar configuración
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../src'))
 
-def load_data(file_path):
-    return pd.read_csv(file_path)
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',  # Para docstrings en estilo Google o NumPy
+]
 
-def evaluate_model(model, X_test, y_test, model_name):
-    y_pred = model.predict(X_test)
-    y_prob = model.predict_proba(X_test)[:,1] if hasattr(model, "predict_proba") else None
-    
-    print(f"--- Evaluación del Modelo: {model_name} ---")
-    print("Reporte de Clasificación:")
-    print(classification_report(y_test, y_pred))
-    
-    print("Matriz de Confusión:")
-    cm = confusion_matrix(y_test, y_pred)
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-    plt.title(f'Matriz de Confusión: {model_name}')
-    plt.xlabel('Predicho')
-    plt.ylabel('Real')
-    plt.show()
-    
-    if y_prob is not None:
-        auc = roc_auc_score(y_test, y_prob)
-        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
-        plt.figure()
-        plt.plot(fpr, tpr, label=f'AUC = {auc:.2f}')
-        plt.plot([0, 1], [0, 1], 'k--')
-        plt.xlabel('Tasa de Falsos Positivos')
-        plt.ylabel('Tasa de Verdaderos Positivos')
-        plt.title(f'Curva ROC: {model_name}')
-        plt.legend(loc='lower right')
-        plt.show()
-        print(f"ROC-AUC Score: {auc:.2f}")
-
-def main():
-    # Cargar datos preparados
-    df = load_data(config['data']['processed_data_path'] + 'prepared_dataset.csv')
-    
-    # Definir características y objetivo
-    X = df.drop(['potential_customer', 'project_lead'], axis=1)
-    y = df['potential_customer']
-    
-    # Dividir datos
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Cargar el modelo entrenado
-    model = joblib.load(config['model']['model_path'])
-    
-    # Evaluar el modelo
-    evaluate_model(model, X_test, y_test, "Random Forest")
-
-if __name__ == "__main__":
-    main()
+# Configurar el tema
+html_theme = 'alabaster'
 ```
 
-### **7. api/app.py**
-Script para desplegar la API usando Flask.
+- **Crear Archivos de Documentación para Cada Módulo:**
+  Por ejemplo, para `DecisionMaker`:
+
+```rst
+# docs/cognitive_engine_dm_module.rst
+
+Cognitive Engine - Decision-Making Module
+==========================================
+
+.. automodule:: cognitive_engine.dm_module.decision_maker
+    :members:
+    :undoc-members:
+    :show-inheritance:
+```
+
+- **Generar la Documentación:**
+
+```bash
+cd docs
+make html
+```
+
+#### **b. Asegurar que cada módulo tenga ejemplos de uso y secciones de FAQs en el README general**
+
+**Recomendaciones:**
+- **Ejemplos de Uso:**
+
+```markdown
+## Ejemplos de Uso
+
+### Uso del Decision-Making Module
 
 ```python
+from src.cognitive_engine.dm_module.decision_maker import DecisionMaker
+
+dm = DecisionMaker()
+context = {
+    "sensor_data": "data_example",
+    "user_input": "Capgemini lidera el mercado en soluciones de IA."
+}
+decision = dm.make_decision(context)
+print(decision)
+```
+
+### Uso de la API Flask
+
+```bash
+curl -X POST http://localhost:5000/predict \
+-H "Content-Type: application/json" \
+-H "x-api-key: tu_api_key_segura" \
+-d '{
+    "revenue_growth": 15.5,
+    "investment_in_tech": 200000,
+    "total_budget": 500000,
+    "engagement_score": 80,
+    "investment_ratio": 0.4,
+    "customer_tenure": 365,
+    "industry_sector_IT": 1,
+    "geographic_location_US": 1
+}'
+```
+
+### Preguntas Frecuentes (FAQ)
+
+**¿Cómo puedo entrenar un nuevo modelo?**
+
+- Ejecuta el script `train_model.py` después de preprocesar los datos y realizar la ingeniería de características.
+
+**¿Dónde se almacenan los modelos entrenados?**
+
+- Los modelos se almacenan en la carpeta `models/` según lo especificado en `config.yaml`.
+```
+
+---
+
+### **6. Seguridad y Gestión de Acceso**
+
+#### **a. Revisar y optimizar la seguridad en la gestión de API Keys y tokens**
+
+**Recomendaciones:**
+- **Uso de Variables de Entorno:** Nunca almacenes claves API directamente en el código. Utiliza variables de entorno o servicios de gestión de secretos.
+- **Archivo `.env`:** Utiliza archivos `.env` para cargar variables de entorno localmente y añade `.env` a `.gitignore`.
+
+**Ejemplo de Configuración de Variables de Entorno:**
+
+1. **Crear un archivo `.env`:**
+
+```env
+API_KEY=tu_api_key_segura
+```
+
+2. **Instalar `python-dotenv`:**
+
+```bash
+pip install python-dotenv
+```
+
+3. **Modificar `app.py` para Cargar Variables de Entorno:**
+
+```python
+# src/api/app.py
+
+import os
 from flask import Flask, request, jsonify
 import joblib
 import pandas as pd
+from dotenv import load_dotenv
 import yaml
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Cargar configuración
 with open('../../config.yaml', 'r') as file:
@@ -402,8 +675,15 @@ app = Flask(__name__)
 model = joblib.load(config['model']['model_path'])
 scaler = joblib.load(config['model']['scaler_path'])
 
+# Autenticación simple usando API Key
+API_KEY = os.getenv('API_KEY')
+
 @app.route('/predict', methods=['POST'])
 def predict():
+    api_key = request.headers.get('x-api-key')
+    if api_key != API_KEY:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
     data = request.get_json(force=True)
     df = pd.DataFrame([data])
     
@@ -436,202 +716,205 @@ if __name__ == '__main__':
     app.run(host=config['api']['host'], port=config['api']['port'], debug=True)
 ```
 
-### **8. dashboard/dashboard.py**
-Script para desarrollar el dashboard interactivo usando Dash.
+#### **b. Implementar OAuth 2.0 o JWT para control de acceso**
+
+**Recomendaciones:**
+- **JWT (JSON Web Tokens):** Es una opción popular para manejar autenticación y autorización en APIs.
+- **Bibliotecas Recomendadas:** Utiliza bibliotecas como `PyJWT` o `Flask-JWT-Extended` para implementar JWT.
+
+**Ejemplo de Implementación con `Flask-JWT-Extended`:**
+
+1. **Instalar la Biblioteca:**
+
+```bash
+pip install Flask-JWT-Extended
+```
+
+2. **Modificar `app.py` para Usar JWT:**
 
 ```python
-import dash
-from dash import dcc, html
-import plotly.express as px
+# src/api/app.py
+
+from flask import Flask, request, jsonify
+import joblib
 import pandas as pd
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import yaml
+from datetime import timedelta
+
+app = Flask(__name__)
+
+# Configuración de JWT
+app.config['JWT_SECRET_KEY'] = 'tu_secreto_seguro'  # Cambia esto por una clave segura
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+
+jwt = JWTManager(app)
 
 # Cargar configuración
 with open('../../config.yaml', 'r') as file:
     config = yaml.safe_load(file)
 
-# Inicializar la aplicación Dash
-app = dash.Dash(__name__)
+# Cargar el modelo entrenado y el escalador
+model = joblib.load(config['model']['model_path'])
+scaler = joblib.load(config['model']['scaler_path'])
 
-# Cargar los proyectos con relevancia asignada
-projects_df = pd.read_csv('../../data/projects_with_relevance.csv')
-
-# Layout de la aplicación
-app.layout = html.Div([
-    html.H1("Dashboard de Relevancia de Proyectos No Explotados"),
+# Ruta para autenticación y obtención de token
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
     
-    dcc.Graph(
-        id='relevancia-proyectos',
-        figure=px.bar(projects_df, x='project_name', y='probabilidad_potencial',
-                     color='relevancia',
-                     title='Relevancia de Proyectos No Explotados',
-                     labels={'probabilidad_potencial': 'Probabilidad de Proyecto Transformador'},
-                     hover_data=['project_lead'])
-    ),
+    # Verificar credenciales (implementa tu lógica de autenticación)
+    if username != 'admin' or password != 'password':
+        return jsonify({"msg": "Bad username or password"}), 401
     
-    dcc.Graph(
-        id='distribucion-relevancia',
-        figure=px.pie(projects_df, names='relevancia', title='Distribución de Relevancia')
-    )
-])
+    # Crear token de acceso
+    access_token = create_access_token(identity=username)
+    return jsonify(access_token=access_token), 200
 
-# Ejecutar la aplicación
+# Ruta protegida para predicciones
+@app.route('/predict', methods=['POST'])
+@jwt_required()
+def predict():
+    current_user = get_jwt_identity()
+    data = request.get_json(force=True)
+    df = pd.DataFrame([data])
+    
+    # Preprocesar datos
+    numerical_features = ['revenue_growth', 'investment_in_tech', 'total_budget', 
+                          'engagement_score', 'investment_ratio', 'customer_tenure']
+    df[numerical_features] = scaler.transform(df[numerical_features])
+    
+    # Codificar variables categóricas
+    categorical_features = ['industry_sector_IT', 'industry_sector_Finance', 
+                            'geographic_location_US', 'geographic_location_Europe']
+    for feature in categorical_features:
+        if feature not in df.columns:
+            df[feature] = 0
+    
+    # Asegurar que todas las características están presentes
+    for col in model.feature_names_in_:
+        if col not in df.columns:
+            df[col] = 0
+    
+    # Reordenar columnas según el modelo
+    X = df[model.feature_names_in_]
+    
+    # Realizar predicción
+    prediction = model.predict(X)[0]
+    
+    return jsonify({'potential_customer': int(prediction)})
+
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run(host=config['api']['host'], port=config['api']['port'], debug=True)
 ```
 
-### **9. Dockerfile**
-Archivo para contenedorización de la aplicación.
-
-```dockerfile
-# Usar una imagen base de Python
-FROM python:3.8-slim
-
-# Establecer el directorio de trabajo
-WORKDIR /app
-
-# Copiar los archivos de requisitos
-COPY requirements.txt .
-
-# Instalar las dependencias
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copiar el resto de la aplicación
-COPY . .
-
-# Exponer el puerto de la API
-EXPOSE 5000
-
-# Comando para ejecutar la API
-CMD ["python", "src/api/app.py"]
-```
-
-### **10. README.md**
-Documentación general del proyecto.
-
-```markdown
-# Proyecto TerraBrain Alpha
-
-## Descripción
-TerraBrain Alpha es una iniciativa de la GAIA Intelligent Network Foundation (GINF) destinada a desarrollar el núcleo cognitivo del TerraBrain Supersystem. Este sistema inteligente facilitará la toma de decisiones en tiempo real, la integración de datos cross-domain y la optimización del sistema para proyectos transformadores e innovadores dentro de Capgemini.
-
-## Estructura del Repositorio
-
-```
-TerraBrain_Alpha/
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── new/
-├── notebooks/
-├── src/
-│   ├── data_preprocessing.py
-│   ├── feature_engineering.py
-│   ├── train_model.py
-│   ├── evaluate_model.py
-│   ├── api/
-│   └── dashboard/
-├── tests/
-├── Dockerfile
-├── requirements.txt
-├── config.yaml
-├── README.md
-└── .gitignore
-```
-
-## Instalación
-
-1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/tu_usuario/TerraBrain_Alpha.git
-   cd TerraBrain_Alpha
-   ```
-
-2. **Crear un entorno virtual:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configurar parámetros:**
-   - Edita el archivo `config.yaml` para ajustar las rutas y configuraciones según tus necesidades.
-
-## Uso
-
-### Preprocesamiento de Datos
-```bash
-python src/data_preprocessing.py
-```
-
-### Ingeniería de Características
-```bash
-python src/feature_engineering.py
-```
-
-### Entrenamiento del Modelo
-```bash
-python src/train_model.py
-```
-
-### Evaluación del Modelo
-```bash
-python src/evaluate_model.py
-```
-
-### Despliegue de la API
-```bash
-python src/api/app.py
-```
-
-### Desarrollo del Dashboard
-```bash
-python src/dashboard/dashboard.py
-```
-
-## Contenedorización con Docker
-
-1. **Construir la imagen Docker:**
-   ```bash
-   docker build -t terrabrain_alpha .
-   ```
-
-2. **Ejecutar el contenedor:**
-   ```bash
-   docker run -p 5000:5000 terrabrain_alpha
-   ```
-
-## Testing
-
-Ejecutar pruebas unitarias utilizando `pytest`:
-```bash
-pytest tests/
-```
-
-## Contribución
-
-1. **Fork del repositorio**
-2. **Crear una rama para tu feature (`git checkout -b feature/nueva_feature`)**
-3. **Commit de tus cambios (`git commit -m 'Añadir nueva feature')**
-4. **Push a la rama (`git push origin feature/nueva_feature`)**
-5. **Crear un Pull Request**
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
-
-## Contacto
-
-Para cualquier consulta o sugerencia, por favor contacta a [tu_email@capgemini.com](mailto:tu_email@capgemini.com).
+**Notas:**
+- **Protección de Claves Secretas:** Asegúrate de almacenar `JWT_SECRET_KEY` de manera segura, utilizando variables de entorno o servicios de gestión de secretos.
+- **Implementación de Autenticación Real:** Reemplaza la lógica de autenticación simple con una solución más robusta que consulte una base de datos o un servicio de autenticación externo.
 
 ---
 
-**¡Éxito continuo en el Proyecto TerraBrain Alpha!**
-```
+## **Consideraciones Finales**
+
+El **Proyecto TerraBrain Alpha** está muy bien estructurado y tiene un excelente potencial de expansión. La modularidad en la arquitectura actual permite integrar nuevas características, algoritmos y modelos sin afectar la estabilidad del sistema principal. A continuación, algunas recomendaciones adicionales para asegurar el éxito continuo:
+
+1. **Optimizar la Documentación a Medida que se Desarrollen Nuevas Funcionalidades**
+   - **Actualizaciones Regulares:** Mantén la documentación actualizada con cada nuevo cambio o funcionalidad añadida.
+   - **Tutoriales y Guías Paso a Paso:** Crea tutoriales que guíen a los nuevos colaboradores a través de las funcionalidades más importantes del sistema.
+
+2. **Implementar Automatización de Pruebas y Control de Calidad**
+   - **Cobertura de Pruebas:** Utiliza herramientas como `coverage.py` para asegurar una alta cobertura de pruebas.
+   - **Pruebas de Integración y E2E:** Añade pruebas de extremo a extremo para verificar que todos los componentes interactúan correctamente.
+
+3. **Mantener un Enfoque en la Escalabilidad y Flexibilidad**
+   - **Arquitectura Escalable:** Diseña los módulos de manera que puedan escalar horizontalmente según las necesidades del proyecto.
+   - **Uso de Microservicios:** Considera dividir aún más el sistema en microservicios para facilitar el mantenimiento y la escalabilidad.
+
+4. **Preparación para Tecnologías Emergentes**
+   - **Digital Twins:** Investiga y planifica la integración de Digital Twins para simulaciones avanzadas y optimización en tiempo real.
+   - **Quantum Computing:** Mantente al tanto de los avances en computación cuántica y planifica cómo integrarlos en el sistema para aprovechar su potencial en optimización y procesamiento de datos.
+
+5. **Capacitación y Desarrollo del Equipo**
+   - **Formación Continua:** Organiza sesiones de capacitación para que el equipo se mantenga actualizado con las tecnologías y mejores prácticas utilizadas en el proyecto.
+   - **Documentación de Buenas Prácticas:** Crea una guía de buenas prácticas para el desarrollo, asegurando la consistencia y calidad del código.
+
+6. **Recopilación y Uso de Feedback de Usuarios y Stakeholders**
+   - **Mecanismos de Feedback:** Implementa formularios, encuestas o sesiones de revisión para recoger feedback de usuarios y stakeholders.
+   - **Iteración Basada en Feedback:** Utiliza el feedback recopilado para iterar y mejorar las funcionalidades del sistema.
+
+---
+
+## **¡Mucho Éxito en las Próximas Etapas del Proyecto TerraBrain Alpha!**
+
+El **Proyecto TerraBrain Alpha** está en una trayectoria prometedora gracias a su estructura bien organizada, planificación detallada y enfoque en la modularidad y escalabilidad. Al seguir las recomendaciones proporcionadas y mantener un enfoque en las mejores prácticas de desarrollo, documentación y control de calidad, estarás en una excelente posición para avanzar hacia el éxito del proyecto.
+
+**¡Adelante con este proyecto innovador y visionario! 🌟🚀**
+
+Si necesitas asistencia adicional en cualquier fase específica, desarrollo de visualizaciones personalizadas, o integración con sistemas existentes, no dudes en contactarme. Estoy aquí para ayudarte a asegurar que tu iniciativa de modelado predictivo y desarrollo de sistemas inteligentes sea lo más efectiva y exitosa posible.
+
+---
+
+## **Recursos Adicionales**
+
+### **Herramientas de Gestión de Proyectos**
+- **Jira:** [Jira](https://www.atlassian.com/es/software/jira)
+- **Trello:** [Trello](https://trello.com/)
+- **Confluence:** [Confluence](https://www.atlassian.com/es/software/confluence)
+- **Notion:** [Notion](https://www.notion.so/)
+
+### **Frameworks de Testing**
+- **pytest:** [pytest Documentation](https://docs.pytest.org/en/7.1.x/)
+- **unittest:** [unittest Documentation](https://docs.python.org/3/library/unittest.html)
+
+### **Herramientas de Automatización de Pipelines**
+- **Apache Airflow:** [Apache Airflow](https://airflow.apache.org/)
+  - **Descripción:** Plataforma de código abierto para crear, programar y monitorear workflows de manera programática.
+- **Kubeflow:** [Kubeflow](https://www.kubeflow.org/)
+  - **Descripción:** Herramienta de machine learning que se ejecuta sobre Kubernetes, facilitando la implementación y gestión de pipelines de ML.
+- **Prefect:** [Prefect](https://www.prefect.io/)
+  - **Descripción:** Plataforma de orquestación de workflows que facilita la creación, programación y monitoreo de pipelines de datos.
+- **Luigi:** [Luigi](https://luigi.readthedocs.io/en/stable/)
+  - **Descripción:** Framework de Python desarrollado por Spotify para construir pipelines de batch complejos.
+- **Dagster:** [Dagster](https://dagster.io/)
+  - **Descripción:** Plataforma de orquestación de datos que permite diseñar, probar y desplegar pipelines de datos de manera eficiente.
+- **Argo Workflows:** [Argo Workflows](https://argoproj.github.io/argo-workflows/)
+  - **Descripción:** Motor de flujo de trabajo nativo de Kubernetes para ejecutar tareas y pipelines de manera declarativa.
+
+### **Recursos de Visualización**
+- **Dash:** [Dash](https://dash.plotly.com/)
+  - **Descripción:** Framework de Python para construir aplicaciones web analíticas e interactivas.
+- **Streamlit:** [Streamlit](https://streamlit.io/)
+  - **Descripción:** Herramienta de código abierto que permite crear rápidamente aplicaciones web para machine learning y data science.
+- **Plotly:** [Plotly](https://plotly.com/)
+  - **Descripción:** Biblioteca de visualización interactiva que soporta una amplia variedad de gráficos y diagramas.
+
+### **Documentación y Aprendizaje**
+- **Scikit-Learn Documentation:** [Scikit-Learn](https://scikit-learn.org/stable/documentation.html)
+  - **Descripción:** Biblioteca de machine learning en Python con documentación extensa y ejemplos prácticos.
+- **Optuna Documentation:** [Optuna Documentation](https://optuna.readthedocs.io/en/stable/)
+  - **Descripción:** Framework de optimización automática de hiperparámetros para machine learning.
+- **TensorFlow Documentation:** [TensorFlow](https://www.tensorflow.org/learn)
+  - **Descripción:** Biblioteca de código abierto para machine learning y deep learning desarrollada por Google.
+- **PyTorch Documentation:** [PyTorch](https://pytorch.org/docs/stable/index.html)
+  - **Descripción:** Biblioteca de deep learning de código abierto desarrollada por Facebook AI Research.
+
+### **Herramientas de Colaboración Visual**
+- **Miro:** [Miro](https://miro.com/)
+  - **Descripción:** Herramienta de colaboración visual para crear mapas mentales, diagramas y colaborar en tiempo real.
+- **Mural:** [Mural](https://www.mural.co/)
+  - **Descripción:** Plataforma colaborativa para brainstorming y diseño visual en equipo.
+
+### **Herramientas de Monitoreo**
+- **Prometheus:** [Prometheus](https://prometheus.io/)
+  - **Descripción:** Sistema de monitoreo y alerta de código abierto diseñado para fiabilidad y escalabilidad.
+- **Grafana:** [Grafana](https://grafana.com/)
+  - **Descripción:** Plataforma de análisis y visualización de métricas que se integra con múltiples fuentes de datos.
+- **ELK Stack (Elasticsearch, Logstash, Kibana):** [ELK Stack](https://www.elastic.co/elk-stack)
+  - **Descripción:** Conjunto de herramientas para búsqueda, análisis y visualización de datos en tiempo real.
+- **Datadog:** [Datadog](https://www.datadoghq.com/)
+  - **Descripción:** Plataforma de monitoreo y análisis para infraestructura, aplicaciones y logs.
+
 
 ---
 
