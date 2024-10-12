@@ -335,3 +335,4 @@ Recomendaciones:
          •   Caso de Uso 1: Optimización de Rutas de Aviones Autónomos.
          •   Caso de Uso 2: Monitoreo y Gestión de Energía Sostenible.
          •   Caso de Uso 3: Análisis Predictivo de Datos de IoT para Mejorar la Eficiencia Operacional.
+
